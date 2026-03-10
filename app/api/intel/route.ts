@@ -8,6 +8,7 @@ export const maxDuration = 30;
 
 const CACHE_TTL_MS = 55_000;
 const CACHE_FETCH_LIMIT = 500;
+const MIN_ACCEPTABLE_EVENTS = 80;
 
 let intelCache: {
   updatedAtMs: number;
@@ -55,10 +56,14 @@ export async function GET(request: NextRequest) {
 
     if (Date.now() - intelCache.updatedAtMs > CACHE_TTL_MS || intelCache.events.length === 0) {
       const events = await fetchIntelEvents(CACHE_FETCH_LIMIT);
-      intelCache = {
-        updatedAtMs: Date.now(),
-        events,
-      };
+      const shouldKeepPrevious =
+        intelCache.events.length >= MIN_ACCEPTABLE_EVENTS && events.length < MIN_ACCEPTABLE_EVENTS;
+      if (!shouldKeepPrevious) {
+        intelCache = {
+          updatedAtMs: Date.now(),
+          events,
+        };
+      }
     }
 
     const filteredByCategory =
