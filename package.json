@@ -1,0 +1,36 @@
+{
+  "name": "hormuz-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "vercel:deploy": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "leaflet": "^1.9.4",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/google.maps": "^3.58.1",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^25.4.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.6",
+    "typescript": "^5.9.3"
+  }
+}
