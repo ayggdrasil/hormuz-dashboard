@@ -164,15 +164,14 @@ const SOURCE_TIER_OPTIONS: Array<{ value: SourceTier; label: string }> = [
   { value: "tier-3", label: "Tier 3" },
 ];
 
-type TimeFilterValue = "all" | "1h" | "6h" | "24h" | "3d" | "7d";
+type TimeFilterValue = "all" | "1h" | "6h" | "24h" | "3d";
 
 const TIME_FILTER_OPTIONS: Array<{ value: TimeFilterValue; label: string; ms: number | null }> = [
-  { value: "all", label: "All time", ms: null },
+  { value: "all", label: "All (max 3 days)", ms: null },
   { value: "1h", label: "Last 1 hour", ms: 1 * 60 * 60 * 1000 },
   { value: "6h", label: "Last 6 hours", ms: 6 * 60 * 60 * 1000 },
   { value: "24h", label: "Last 24 hours", ms: 24 * 60 * 60 * 1000 },
   { value: "3d", label: "Last 3 days", ms: 3 * 24 * 60 * 60 * 1000 },
-  { value: "7d", label: "Last 7 days", ms: 7 * 24 * 60 * 60 * 1000 },
 ];
 const INTEL_FEED_LIMIT = 500;
 const NEWS_LIST_RENDER_LIMIT = 500;
@@ -996,6 +995,18 @@ export function Dashboard() {
                         <span className="muted">{t("source_tier_short")}</span>
                         <strong>{tierLabel(selectedIntel.sourceTier)}</strong>
                       </div>
+                      {selectedIntel.attackContext?.origin ? (
+                        <div>
+                          <span className="muted">Attack Origin</span>
+                          <strong>{selectedIntel.attackContext.origin.name}</strong>
+                        </div>
+                      ) : null}
+                      {selectedIntel.attackContext?.target ? (
+                        <div>
+                          <span className="muted">Attack Target</span>
+                          <strong>{selectedIntel.attackContext.target.name}</strong>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="tag-row">
                       {selectedIntel.categories.map((category) => (

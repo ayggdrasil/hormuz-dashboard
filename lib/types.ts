@@ -96,6 +96,10 @@ export interface IntelEvent {
   language: NewsLanguage;
   sourceRegion: SourceRegion;
   sourceTier: SourceTier;
+  attackContext?: {
+    origin: GeoPoint | null;
+    target: GeoPoint | null;
+  } | null;
 }
 
 export interface OilSnapshot {

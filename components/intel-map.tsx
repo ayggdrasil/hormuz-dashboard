@@ -98,7 +98,15 @@ export function IntelMap({ events, selectedId, onSelect }: IntelMapProps) {
       marker.bindPopup(
         `<div style="min-width:230px"><strong>${escapeHtml(event.title)}</strong><br/><span>${escapeHtml(
           event.source,
-        )}</span><br/><span>Time: ${timeText}</span><br/><span>Location: ${escapeHtml(location.name)}</span></div>`,
+        )}</span><br/><span>Time: ${timeText}</span><br/><span>Location: ${escapeHtml(location.name)}</span>${
+          event.attackContext?.origin
+            ? `<br/><span>Origin: ${escapeHtml(event.attackContext.origin.name)}</span>`
+            : ""
+        }${
+          event.attackContext?.target
+            ? `<br/><span>Target: ${escapeHtml(event.attackContext.target.name)}</span>`
+            : ""
+        }</div>`,
       );
 
       marker.on("click", () => {
@@ -110,6 +118,50 @@ export function IntelMap({ events, selectedId, onSelect }: IntelMapProps) {
       if (isSelected) {
         marker.openPopup();
       }
+
+      if (event.categories.includes("attack") && event.attackContext?.origin && event.attackContext?.target) {
+        const origin = event.attackContext.origin;
+        const target = event.attackContext.target;
+
+        L.polyline(
+          [
+            [origin.lat, origin.lng],
+            [target.lat, target.lng],
+          ],
+          {
+            color: "#f59e0b",
+            weight: isSelected ? 3 : 2,
+            opacity: 0.9,
+            dashArray: "6 6",
+          },
+        ).addTo(layerGroup);
+
+        L.circleMarker([origin.lat, origin.lng], {
+          radius: isSelected ? 6 : 4,
+          color: "#7a3b02",
+          weight: 1,
+          fillColor: "#f59e0b",
+          fillOpacity: 1,
+        })
+          .bindPopup(
+            `<div><strong>Attack Origin</strong><br/><span>${escapeHtml(origin.name)}</span><br/><span>${timeText}</span></div>`,
+          )
+          .on("click", () => onSelect(event.id))
+          .addTo(layerGroup);
+
+        L.circleMarker([target.lat, target.lng], {
+          radius: isSelected ? 6 : 4,
+          color: "#6f1111",
+          weight: 1,
+          fillColor: "#ef4444",
+          fillOpacity: 1,
+        })
+          .bindPopup(
+            `<div><strong>Attack Target</strong><br/><span>${escapeHtml(target.name)}</span><br/><span>${timeText}</span></div>`,
+          )
+          .on("click", () => onSelect(event.id))
+          .addTo(layerGroup);
+      }
     }
   }, [events, selectedId, onSelect]);
 
@@ -120,11 +172,12 @@ export function IntelMap({ events, selectedId, onSelect }: IntelMapProps) {
     }
 
     const selected = events.find((event) => event.id === selectedId);
-    if (!selected?.location) {
+    const focusPoint = selected?.attackContext?.target ?? selected?.location ?? null;
+    if (!focusPoint) {
       return;
     }
 
-    map.flyTo([selected.location.lat, selected.location.lng], Math.max(map.getZoom(), 6), {
+    map.flyTo([focusPoint.lat, focusPoint.lng], Math.max(map.getZoom(), 6), {
       duration: 0.55,
     });
   }, [events, selectedId]);

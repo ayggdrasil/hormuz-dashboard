@@ -254,6 +254,81 @@ function inferLocation(text: string): { name: string; lat: number; lng: number }
   };
 }
 
+function getLocationByName(name: string): { name: string; lat: number; lng: number } | null {
+  const hit = LOCATION_RULES.find((rule) => rule.name === name);
+  if (!hit) return null;
+  return { name: hit.name, lat: hit.lat, lng: hit.lng };
+}
+
+function extractMentionedLocations(text: string): Array<{ name: string; lat: number; lng: number }> {
+  const lowered = text.toLowerCase();
+  const hits: Array<{
+    idx: number;
+    aliasLength: number;
+    location: { name: string; lat: number; lng: number };
+  }> = [];
+
+  for (const rule of LOCATION_RULES) {
+    for (const alias of rule.aliases) {
+      const idx = findAliasIndex(lowered, alias);
+      if (idx < 0) continue;
+      hits.push({
+        idx,
+        aliasLength: alias.length,
+        location: { name: rule.name, lat: rule.lat, lng: rule.lng },
+      });
+    }
+  }
+
+  hits.sort((a, b) => (a.idx === b.idx ? b.aliasLength - a.aliasLength : a.idx - b.idx));
+
+  const seen = new Set<string>();
+  const ordered: Array<{ name: string; lat: number; lng: number }> = [];
+  for (const hit of hits) {
+    if (seen.has(hit.location.name)) continue;
+    seen.add(hit.location.name);
+    ordered.push(hit.location);
+  }
+  return ordered;
+}
+
+function inferAttackContext(
+  text: string,
+  categories: IntelCategory[],
+): { origin: { name: string; lat: number; lng: number } | null; target: { name: string; lat: number; lng: number } | null } | null {
+  if (!categories.includes("attack")) {
+    return null;
+  }
+
+  const mentions = extractMentionedLocations(text);
+  if (mentions.length >= 2) {
+    return {
+      origin: mentions[0],
+      target: mentions[1],
+    };
+  }
+
+  if (mentions.length === 1) {
+    const lowered = text.toLowerCase();
+    let inferredOrigin: { name: string; lat: number; lng: number } | null = null;
+    if (/\biran|iranian|irgc\b/.test(lowered)) inferredOrigin = getLocationByName("Tehran");
+    else if (/\bisrael|israeli|idf\b/.test(lowered)) inferredOrigin = getLocationByName("Jerusalem");
+    else if (/\bhouthi|houthis|yemen\b/.test(lowered)) inferredOrigin = getLocationByName("Sanaa");
+    else if (/\bhezbollah|lebanon\b/.test(lowered)) inferredOrigin = getLocationByName("Beirut");
+
+    if (inferredOrigin && inferredOrigin.name === mentions[0].name) {
+      return { origin: null, target: mentions[0] };
+    }
+
+    return {
+      origin: inferredOrigin,
+      target: mentions[0],
+    };
+  }
+
+  return null;
+}
+
 function setTranslationCache(key: string, value: string): void {
   if (EN_TRANSLATION_CACHE.size >= TRANSLATION_CACHE_LIMIT) {
     const firstKey = EN_TRANSLATION_CACHE.keys().next().value;
@@ -484,7 +559,8 @@ async function fetchNewsBucket(
         return acc;
       }
       const categories = classify(title, summary, defaultCategory);
-      const location = inferLocation(`${title} ${summary}`);
+      const attackContext = inferAttackContext(`${title} ${summary}`, categories);
+      const location = attackContext?.target ?? inferLocation(`${title} ${summary}`);
 
       const parsedDomain = item.link ? new URL(item.link).hostname.replace(/^www\./, "") : "";
       const { region, tier } = inferSourceTier(parsedDomain, source);
@@ -504,6 +580,7 @@ async function fetchNewsBucket(
         language,
         sourceRegion: region,
         sourceTier: tier,
+        attackContext,
       });
       return acc;
     }, []);
@@ -561,7 +638,8 @@ async function fetchGdeltFallback(): Promise<IntelEvent[]> {
         return acc;
       }
       const categories = classify(title, summary, "war");
-      const location = inferLocation(`${title} ${summary}`);
+      const attackContext = inferAttackContext(`${title} ${summary}`, categories);
+      const location = attackContext?.target ?? inferLocation(`${title} ${summary}`);
       const domain = (article.domain ?? "gdelt").replace(/^www\./, "");
       const { region, tier } = inferSourceTier(domain, domain);
 
@@ -579,6 +657,7 @@ async function fetchGdeltFallback(): Promise<IntelEvent[]> {
         language: guessLanguage(title, domain),
         sourceRegion: region,
         sourceTier: tier,
+        attackContext,
       });
       return acc;
     }, []);
@@ -654,6 +733,7 @@ function makeOilEvent(snapshot: OilSnapshot): IntelEvent {
     language: "en",
     sourceRegion: "us",
     sourceTier: "tier-2",
+    attackContext: null,
   };
 }
 
